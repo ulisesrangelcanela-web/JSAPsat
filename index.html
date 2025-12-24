@@ -1,0 +1,912 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Powersat JSA Editor (2 pages)</title>
+
+<!-- Render a imagen y PDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<style>
+  :root{ --accent:#0b63d8; --muted:#444; --card:#fff; }
+  body{font-family:Arial, Helvetica, sans-serif; background:#f3f5f8; margin:16px; color:#111;}
+  .topbar{display:flex; gap:12px; align-items:center; margin-bottom:10px; flex-wrap:wrap;}
+  .small{font-size:12px; color:#444;}
+
+  .container{display:flex; gap:18px; align-items:flex-start;}
+  .panel{background:var(--card); padding:12px; border-radius:8px; box-shadow:0 6px 18px rgba(0,0,0,0.06);}
+  .form{width:420px; max-height:86vh; overflow:auto;}
+  label{display:block; margin-top:8px; font-size:12px; font-weight:600; letter-spacing:0.4px; color:#555;}
+  input[type="text"], input[type="date"], select, textarea{
+    width:100%; padding:9px 10px; margin-top:4px;
+    border:1px solid #ddd; border-radius:6px; box-sizing:border-box;
+    text-transform:uppercase; font-size:14px; font-weight:500;
+  }
+  textarea{resize:vertical;}
+  .btn{
+    display:inline-block; padding:8px 10px; margin-top:8px;
+    border-radius:6px; cursor:pointer; background:var(--accent);
+    color:#fff; border:none;
+  }
+  .btn.secondary{ background:#777; }
+  .btn.good{ background:#0a8; }
+  .btn.warn{ background:#b00020; }
+  .row{display:flex; gap:10px;}
+  .row > div{flex:1;}
+
+  .preview-wrap{flex:1; max-width:980px;}
+  .tabs{display:flex; gap:8px; margin-bottom:8px; flex-wrap:wrap;}
+  .tab{padding:8px 10px; border-radius:8px; border:1px solid #ddd; cursor:pointer; background:#fff;}
+  .tab.active{border-color:var(--accent); box-shadow:0 2px 10px rgba(0,0,0,0.06);}
+  .hint{font-size:12px; color:#333; margin:6px 0 0 0;}
+
+  /* ====== CANVAS ====== */
+  .jsa-canvas{
+    width:940px;
+    background:#fff;
+    border:1px solid #ccc;
+    position:relative;
+    overflow:hidden;
+  }
+  .jsa-bg{width:100%; height:auto; display:block; pointer-events:none;}
+  .overlay{
+    position:absolute;
+    pointer-events:auto;
+    color:#000;
+    font-size:8px;
+    white-space:pre-wrap;
+    text-transform:uppercase;
+  }
+
+  .drag-on .overlay{
+    cursor:move;
+    outline:1px dashed rgba(11,99,216,0.55);
+    background:rgba(255,255,255,0.35);
+    padding:2px 3px;
+    border-radius:4px;
+  }
+
+  /* Overlay seleccionado: resaltado */
+  .overlay.selected{
+    outline:2px solid rgba(176,0,32,0.85) !important;
+    background: rgba(255,230,230,0.55) !important;
+  }
+
+  /* Responsive */
+  @media(max-width:1100px){
+    .jsa-canvas{ transform:scale(0.85); transform-origin:top left; }
+  }
+  @media (max-width: 768px) {
+    body{margin:8px; overflow-x:hidden;}
+    .container{flex-direction:column; gap:20px;}
+    .form{width:100% !important; max-height:unset !important;}
+    .preview-wrap{width:100% !important; max-width:100% !important; overflow-x:auto;}
+    .jsa-canvas{width:940px;}
+  }
+</style>
+</head>
+
+<body>
+
+<div class="topbar">
+  <h3 style="margin:0; text-transform:uppercase;">POWERSAT JSA EDITOR (2 PAGES)</h3>
+  <div class="small">Fill fields → preview overlays → generate 2-page PDF.</div>
+</div>
+
+<div class="container">
+
+  <!-- ================= LEFT FORM ================= -->
+  <div class="panel form">
+
+    <div class="row">
+      <div>
+        <label>SERVICE TYPE (REFERENCE)</label>
+        <select id="serviceSelect"></select>
+      </div>
+      <div>
+        <label>DRAG MODE (MOVE OVERLAYS)</label>
+        <button id="dragToggle" class="btn secondary" type="button">DRAG: OFF</button>
+      </div>
+    </div>
+
+    <label>COMPANY</label>
+    <input id="companyInput" type="text" value="POWERSAT COMMUNICATIONS USA LP" />
+
+    <div class="row">
+      <div>
+        <label>WELL / SITE</label>
+        <input id="siteInput" type="text" placeholder="EOG - (SITE NAME)" />
+      </div>
+      <div>
+        <label>DATE</label>
+        <input id="dateInput" type="date" />
+      </div>
+    </div>
+
+    <label>TASK DESCRIPTION</label>
+    <textarea id="taskInput" rows="2" placeholder="EX: MOVE MOBILE COMMUNICATION TOWER TO NEW PAD, SETUP, POWER UP, VERIFY SIGNAL"></textarea>
+
+    <label>MOST SERIOUS POTENTIAL INJURY (ONE LINE)</label>
+    <input id="injuryInput" type="text" placeholder="EX: FALL FROM HEIGHT / STRUCK-BY / ELECTRICAL SHOCK" />
+
+    <hr />
+
+    <label>REQUIRED REFERENCES (CHECK)</label>
+    <div class="row">
+      <div>
+        <select id="refReviewed">
+          <option value="YES">YES</option>
+          <option value="NO">NO</option>
+          <option value="NA">N/A</option>
+        </select>
+      </div>
+      <div>
+        <input id="refAttach" type="text" placeholder="ATTACH / LIST PROCEDURES" />
+      </div>
+    </div>
+
+    <label>RISK ASSESSMENT</label>
+    <div class="row">
+      <div>
+        <label style="margin-top:0;">MODIFY PROCEDURES?</label>
+        <select id="riskModify">
+          <option value="NO">NO</option>
+          <option value="YES">YES</option>
+        </select>
+      </div>
+      <div>
+        <label style="margin-top:0;">SIGNIFICANT RISK REMAINS?</label>
+        <select id="riskRemains">
+          <option value="NO">NO</option>
+          <option value="YES">YES</option>
+        </select>
+      </div>
+    </div>
+
+    <hr />
+
+    <label>PPE (CHECKLIST)</label>
+    <div class="row">
+      <div>
+        <select id="ppePreset">
+          <option value="">-- PPE PRESET --</option>
+          <option value="TOWER">TOWER / MAST / WORKING AROUND TOWERS</option>
+          <option value="GEN">GENERATOR / POWER</option>
+          <option value="TRAILER">OFFICE TRAILER / GENERAL</option>
+          <option value="RIGS">RIGS / BOOSTERS</option>
+        </select>
+      </div>
+      <div>
+        <input id="ppeOther" type="text" placeholder="OTHER PPE (SPECIFY)" />
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label style="margin-top:0;">PPE TEXT (AUTO / EDIT)</label>
+        <textarea id="ppeText" rows="3" placeholder="HARD HAT, SAFETY GLASSES, STEEL TOE, HEARING, GLOVES, FALL PROTECTION..."></textarea>
+      </div>
+    </div>
+
+    <hr />
+
+    <label>JSA REVIEWER (SUPERVISOR OR DESIGNATE) - NAME</label>
+    <input id="reviewerName" type="text" placeholder="NAME" />
+    <label>JSA REVIEWER - COMPANY</label>
+    <input id="reviewerCompany" type="text" placeholder="COMPANY" />
+
+    <label>TASK LEADER - NAME</label>
+    <input id="leaderName" type="text" placeholder="NAME" />
+    <label>TASK LEADER - COMPANY</label>
+    <input id="leaderCompany" type="text" placeholder="COMPANY" />
+
+    <label>WORK TEAM NAMES (PRINT) - ONE PER LINE</label>
+    <textarea id="teamNames" rows="4" placeholder="EX:
+ULISES R.
+JOHN D.
+..."></textarea>
+
+    <hr />
+
+    <label>PAGE 2 - TASK STEPS (AUTO / EDIT)</label>
+    <textarea id="stepsText" rows="10" placeholder="FORMAT:
+1) STEP | HAZARD | CONTROL | ASSIGNED TO | COMPLETE (Y/N)
+..."></textarea>
+
+    <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+      <button id="applyBtn" class="btn" type="button">APPLY TO PREVIEW</button>
+      <button id="genPdfBtn" class="btn good" type="button">GENERATE 2-PAGE PDF</button>
+      <button id="exportPosBtn" class="btn secondary" type="button">EXPORT POS JSON</button>
+      <button id="importPosBtn" class="btn secondary" type="button">IMPORT POS JSON</button>
+      <input id="importPosFile" type="file" accept="application/json" style="display:none;" />
+    </div>
+
+    <hr />
+
+    <div class="small"><b>UPLOAD BACKGROUND IMAGES (RECOMMENDED)</b></div>
+    <label>BG PAGE 1 (JPG/PNG)</label>
+    <input id="bg1Input" type="file" accept="image/*" />
+    <label>BG PAGE 2 (JPG/PNG)</label>
+    <input id="bg2Input" type="file" accept="image/*" />
+
+    <p class="hint">
+      Tip: Export each PDF page to PNG/JPG and upload here. Then you can drag overlays to perfect alignment.
+    </p>
+
+  </div>
+
+  <!-- ================= RIGHT PREVIEW ================= -->
+  <div class="panel preview-wrap">
+    <!-- ===== NUDGE CONTROL (ARROWS) ===== -->
+    <div class="panel" style="margin-bottom:10px;">
+      <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+        <div class="small"><b>NUDGE CONTROL</b></div>
+        <div class="small">Selected: <span id="selectedOverlayName" style="font-weight:700;">(none)</span></div>
+        <div class="small">Step:
+          <select id="nudgeStep">
+            <option value="1" selected>1 px</option>
+            <option value="2">2 px</option>
+            <option value="5">5 px</option>
+            <option value="10">10 px</option>
+          </select>
+        </div>
+        <button id="nudgeSavePos" class="btn secondary" type="button">SAVE POS (MEM)</button>
+      </div>
+
+      <div style="display:flex; gap:12px; margin-top:10px; align-items:flex-start; flex-wrap:wrap;">
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          <button class="btn" type="button" id="btnUp">↑</button>
+          <div style="display:flex; gap:6px;">
+            <button class="btn" type="button" id="btnLeft">←</button>
+            <button class="btn" type="button" id="btnRight">→</button>
+          </div>
+          <button class="btn" type="button" id="btnDown">↓</button>
+        </div>
+
+        <div class="small" style="max-width:520px; line-height:1.4;">
+          <b>Uso:</b> Activa <b>DRAG: ON</b> y haz click en un overlay (texto). Luego usa flechas para moverlo con precisión. <br/>
+          Tip: con teclado, <b>Shift + Flecha</b> = 10 px.
+        </div>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <div id="tabP1" class="tab active">PAGE 1 (REVIEW FORM)</div>
+      <div id="tabP2" class="tab">PAGE 2 (TASK STEPS)</div>
+    </div>
+    <div class="small" id="whichHint">Previewing Page 1</div>
+
+    <!-- PAGE 1 -->
+    <div id="canvasP1" class="jsa-canvas">
+      <img id="bg1" class="jsa-bg" src="" alt="JSA Page 1 background" />
+      <div id="ov_company" class="overlay"></div>
+      <div id="ov_site" class="overlay"></div>
+      <div id="ov_date" class="overlay"></div>
+      <div id="ov_task" class="overlay"></div>
+      <div id="ov_injury" class="overlay"></div>
+      <div id="ov_refReviewed" class="overlay"></div>
+      <div id="ov_refAttach" class="overlay"></div>
+      <div id="ov_riskModify" class="overlay"></div>
+      <div id="ov_riskRemains" class="overlay"></div>
+      <div id="ov_ppeText" class="overlay"></div>
+      <div id="ov_ppeOther" class="overlay"></div>
+      <div id="ov_reviewerName" class="overlay"></div>
+      <div id="ov_reviewerCompany" class="overlay"></div>
+      <div id="ov_leaderName" class="overlay"></div>
+      <div id="ov_leaderCompany" class="overlay"></div>
+      <div id="ov_teamNames" class="overlay"></div>
+    </div>
+
+    <!-- PAGE 2 -->
+    <div id="canvasP2" class="jsa-canvas" style="display:none; margin-top:12px;">
+      <img id="bg2" class="jsa-bg" src="" alt="JSA Page 2 background" />
+      <div id="ov_stepsBlock" class="overlay"></div>
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+/* =========================
+   1) SERVICE LIST (REFERENCE)
+   ========================= */
+const SERVICES = [
+  { groupLabel: "--OFFICE TRAILER--", items: [
+    { code:"OFC_RIG_UP", label:"RIG UP - OFFICE TRAILER" },
+    { code:"OFC_RIG_DOWN", label:"RIG DOWN - OFFICE TRAILER" },
+    { code:"OFC_RIG_MOVE", label:"RIG MOVE - OFFICE TRAILER" },
+    { code:"OFC_SERVICE_CALL", label:"SERVICE CALL - OFFICE TRAILER" },
+  ]},
+  { groupLabel: "--GENERATOR--", items: [
+    { code:"GEN_RIG_UP", label:"RIG UP - GENERATOR" },
+    { code:"GEN_RIG_DOWN", label:"RIG DOWN - GENERATOR" },
+    { code:"GEN_RIG_MOVE", label:"RIG MOVE - GENERATOR" },
+    { code:"GEN_SERVICE_CALL", label:"SERVICE CALL - GENERATOR" },
+  ]},
+  { groupLabel: "--TOWER--", items: [
+    { code:"TWR_RIG_UP", label:"RIG UP - TOWER" },
+    { code:"TWR_RIG_DOWN", label:"RIG DOWN - TOWER" },
+    { code:"TWR_RIG_MOVE", label:"RIG MOVE - TOWER" },
+    { code:"TWR_TILT", label:"TILT DOWN & UP - TOWER" },
+    { code:"TWR_SERVICE_CALL", label:"SERVICE CALL - TOWER" },
+  ]},
+  { groupLabel: "--RIGS / BOOSTERS--", items: [
+    { code:"RIG_NEW_MICRO", label:"NEW MICRO CELL BOOSTER" },
+    { code:"RIG_NEW_SHACK", label:"NEW SHACK BOOSTER" },
+    { code:"RIG_CHECK_SHACK", label:"CHECK SHACK BOOSTER" },
+    { code:"RIG_SITE_CHECK", label:"SITE CHECK" },
+  ]},
+];
+
+const SERVICE_TEMPLATES = {
+  "TWR_RIG_MOVE": {
+    task: "MOVE MOBILE COMMUNICATION TOWER TO NEW PAD, SETUP, POWER UP, VERIFY RF AND INTERNET BACKHAUL",
+    injury: "STRUCK-BY / CRUSH / FALL / ELECTRICAL SHOCK",
+    ppe: "HARD HAT, SAFETY GLASSES, STEEL TOE, HI-VIS VEST, CUT-RESISTANT GLOVES, HEARING PROTECTION, FALL PROTECTION (IF CLIMBING), FACE SHIELD (IF GRINDING/CUTTING)",
+    steps: [
+      ["1", "SPOT TRAILER / SET CHOCKS", "PINCH POINTS, STRUCK-BY, ROLLOVER", "USE SPOTTER, SLOW SPEED, CHOCK WHEELS, LEVEL GROUND", "TASK LEADER", "N"],
+      ["2", "SETUP GENERATOR / POWER", "ELECTRICAL SHOCK, ARC, FUEL FIRE", "INSPECT CORDS, GFCI, PROPER GROUNDING, NO FUEL SPILLS, FIRE EXTINGUISHER", "TECH", "N"],
+      ["3", "RAISE / LOWER TOWER (MOTORS)", "CRUSH, PINCH, STRUCK-BY MOVING SECTIONS", "EXCLUSION ZONE, CLEAR AREA, VERIFY CONTROLS, E-STOP READY", "TASK LEADER", "N"],
+      ["4", "CONNECT COMMS (STARLINK/BOOSTERS)", "TRIP HAZARD, SHOCK, TOOL INJURY", "CABLE MANAGEMENT, LOCKOUT IF NEEDED, SAFE TOOL USE", "TECH", "N"],
+      ["5", "VERIFY SIGNAL / ALIGN", "SLIPS/TRIPS, WEATHER, VEHICLE TRAFFIC", "3-POINT CONTACT, WIND LIMITS, STOP WORK IF LIGHTNING, TRAFFIC CONTROL", "TECH", "N"]
+    ]
+  },
+  "TWR_RIG_UP": {
+    task: "RIG UP COMMUNICATION TOWER, POWER UP, VERIFY OPERATION AND SIGNAL COVERAGE",
+    injury: "FALL / STRUCK-BY / ELECTRICAL SHOCK",
+    ppe: "HARD HAT, SAFETY GLASSES, STEEL TOE, HI-VIS VEST, GLOVES, HEARING PROTECTION, FALL PROTECTION (IF REQUIRED)",
+    steps: [
+      ["1","SPOT / LEVEL TRAILER","ROLL, STRUCK-BY","SPOTTER, CHOCKS, LEVEL JACKS","TASK LEADER","N"],
+      ["2","POWER SETUP","SHOCK, FIRE","INSPECT, GFCI, PROPER LOAD, EXTINGUISHER","TECH","N"],
+      ["3","RAISE TOWER","PINCH/CRUSH","EXCLUSION ZONE, CLEAR AREA, E-STOP","TASK LEADER","N"],
+      ["4","COMMS CHECK","TRIPS, SHOCK","CABLE MGMT, SAFE TOOL USE","TECH","N"]
+    ]
+  }
+};
+
+/* =========================
+   2) DOM BINDS
+   ========================= */
+const serviceSelect = document.getElementById("serviceSelect");
+const dragToggle = document.getElementById("dragToggle");
+
+const companyInput = document.getElementById("companyInput");
+const siteInput = document.getElementById("siteInput");
+const dateInput = document.getElementById("dateInput");
+const taskInput = document.getElementById("taskInput");
+const injuryInput = document.getElementById("injuryInput");
+
+const refReviewed = document.getElementById("refReviewed");
+const refAttach = document.getElementById("refAttach");
+const riskModify = document.getElementById("riskModify");
+const riskRemains = document.getElementById("riskRemains");
+
+const ppePreset = document.getElementById("ppePreset");
+const ppeOther = document.getElementById("ppeOther");
+const ppeText = document.getElementById("ppeText");
+
+const reviewerName = document.getElementById("reviewerName");
+const reviewerCompany = document.getElementById("reviewerCompany");
+const leaderName = document.getElementById("leaderName");
+const leaderCompany = document.getElementById("leaderCompany");
+const teamNames = document.getElementById("teamNames");
+
+const stepsText = document.getElementById("stepsText");
+
+const applyBtn = document.getElementById("applyBtn");
+const genPdfBtn = document.getElementById("genPdfBtn");
+
+const bg1Input = document.getElementById("bg1Input");
+const bg2Input = document.getElementById("bg2Input");
+const bg1 = document.getElementById("bg1");
+const bg2 = document.getElementById("bg2");
+
+const canvasP1 = document.getElementById("canvasP1");
+const canvasP2 = document.getElementById("canvasP2");
+
+const tabP1 = document.getElementById("tabP1");
+const tabP2 = document.getElementById("tabP2");
+const whichHint = document.getElementById("whichHint");
+
+/* overlays */
+const O = {
+  company: document.getElementById("ov_company"),
+  site: document.getElementById("ov_site"),
+  date: document.getElementById("ov_date"),
+  task: document.getElementById("ov_task"),
+  injury: document.getElementById("ov_injury"),
+  refReviewed: document.getElementById("ov_refReviewed"),
+  refAttach: document.getElementById("ov_refAttach"),
+  riskModify: document.getElementById("ov_riskModify"),
+  riskRemains: document.getElementById("ov_riskRemains"),
+  ppeText: document.getElementById("ov_ppeText"),
+  ppeOther: document.getElementById("ov_ppeOther"),
+  reviewerName: document.getElementById("ov_reviewerName"),
+  reviewerCompany: document.getElementById("ov_reviewerCompany"),
+  leaderName: document.getElementById("ov_leaderName"),
+  leaderCompany: document.getElementById("ov_leaderCompany"),
+  teamNames: document.getElementById("ov_teamNames"),
+  stepsBlock: document.getElementById("ov_stepsBlock"),
+};
+
+/* =========================
+   3) POSITIONS (YOUR ALIGNED JSON)
+   ========================= */
+let POS = {
+  ov_company:         { left: 151, top: 193, fontSize: 9, width: 280 },
+  ov_site:            { left: 393, top: 186, fontSize: 9, width: 250 },
+  ov_date:            { left: 672, top: 191, fontSize: 9, width: 160 },
+
+  ov_task:            { left: 185, top: 208, fontSize: 9, width: 780 },
+  ov_injury:          { left: 373, top: 224, fontSize: 9, width: 760 },
+
+  ov_refReviewed:     { left: 272, top: 273, fontSize: 9, width: 140 },
+  ov_refAttach:       { left: 212, top: 299, fontSize: 9, width: 320 },
+
+  ov_riskModify:      { left: 269, top: 340, fontSize: 9, width: 140 },
+  ov_riskRemains:     { left: 267, top: 381, fontSize: 9, width: 140 },
+
+  ov_ppeText:         { left: 8,   top: 106, fontSize: 9, width: 430 },
+  ov_ppeOther:        { left: 140, top: 733, fontSize: 9, width: 360 },
+
+  ov_reviewerName:    { left: 479, top: 320, fontSize: 9, width: 220 },
+  ov_reviewerCompany: { left: 687, top: 319, fontSize: 9, width: 130 },
+
+  ov_leaderName:      { left: 477, top: 476, fontSize: 9, width: 230 },
+  ov_leaderCompany:   { left: 706, top: 479, fontSize: 9, width: 130 },
+
+  ov_teamNames:       { left: 435, top: 535, fontSize: 9, width: 360 },
+
+  ov_stepsBlock:      { left: 54,  top: 276, fontSize: 9, width: 870 }
+};
+
+
+
+
+function applyPos() {
+  Object.keys(POS).forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+
+    const p = POS[id];
+
+    el.style.left = (p.left || 0) + "px";
+    el.style.top  = (p.top  || 0) + "px";
+
+    /* tamaño de letra */
+    el.style.fontSize = (p.fontSize || 8) + "px";
+
+    /* ancho controlado */
+    if (p.width) el.style.width = p.width + "px";
+
+    /* ↓↓↓ ESTO CONTROLA LA PARTE INVISIBLE ↓↓↓ */
+    el.style.lineHeight = (p.lineHeight || 1.05);
+    el.style.maxHeight  = p.maxHeight ? (p.maxHeight + "px") : "none";
+    el.style.overflow   = p.maxHeight ? "hidden" : "visible";
+  });
+}
+function forceAllFontSize(sizePx){
+  Object.keys(POS).forEach(id => {
+    POS[id] = POS[id] || {};
+    POS[id].fontSize = sizePx;
+  });
+  applyPos();
+}
+
+
+
+
+/* =========================
+   4) BUILD SERVICE OPTIONS
+   ========================= */
+function buildServiceOptions() {
+  serviceSelect.innerHTML = "";
+  const ph = document.createElement("option");
+  ph.value = "";
+  ph.textContent = "-- SELECT SERVICE --";
+  ph.disabled = true;
+  ph.selected = true;
+  serviceSelect.appendChild(ph);
+
+  SERVICES.forEach(group => {
+    const og = document.createElement("optgroup");
+    og.label = group.groupLabel;
+    serviceSelect.appendChild(og);
+
+    group.items.forEach(item => {
+      const opt = document.createElement("option");
+      opt.value = item.code;
+      opt.dataset.label = item.label;
+      opt.textContent = item.label;
+      og.appendChild(opt);
+    });
+  });
+}
+
+/* =========================
+   5) HELPERS
+   ========================= */
+function formatDateMDY(v){
+  if(!v) return "";
+  const p = v.split("-");
+  return `${p[1]}-${p[2]}-${p[0]}`;
+}
+
+function templateToStepsBlock(lines){
+  return lines.map(r => {
+    const n = (r[0]||"").padEnd(3," ");
+    const step = (r[1]||"").slice(0,32).padEnd(34," ");
+    const haz  = (r[2]||"").slice(0,26).padEnd(28," ");
+    const ctrl = (r[3]||"").slice(0,28).padEnd(30," ");
+    const who  = (r[4]||"").slice(0,12).padEnd(14," ");
+    const done = (r[5]||"N").slice(0,3);
+    return `${n}${step}${haz}${ctrl}${who}${done}`;
+  }).join("\n");
+}
+
+function syncPreview(){
+  O.company.textContent = companyInput.value || "";
+  O.site.textContent = siteInput.value || "";
+  O.date.textContent = dateInput.value ? formatDateMDY(dateInput.value) : "";
+
+  O.task.textContent = taskInput.value || "";
+  O.injury.textContent = injuryInput.value || "";
+
+  O.refReviewed.textContent = (refReviewed.value || "").toUpperCase();
+  O.refAttach.textContent = refAttach.value || "";
+
+  O.riskModify.textContent = (riskModify.value || "").toUpperCase();
+  O.riskRemains.textContent = (riskRemains.value || "").toUpperCase();
+
+  O.ppeText.textContent = ppeText.value || "";
+  O.ppeOther.textContent = ppeOther.value || "";
+
+  O.reviewerName.textContent = reviewerName.value || "";
+  O.reviewerCompany.textContent = reviewerCompany.value || "";
+
+  O.leaderName.textContent = leaderName.value || "";
+  O.leaderCompany.textContent = leaderCompany.value || "";
+
+  O.teamNames.textContent = teamNames.value || "";
+
+  O.stepsBlock.textContent = (stepsText.value || "").toUpperCase();
+}
+
+/* =========================
+   6) DRAG MODE (MOVE OVERLAYS)
+   ========================= */
+let dragEnabled = false;
+let dragTarget = null;
+let dragStart = {x:0,y:0,left:0,top:0};
+
+function setDragMode(on){
+  dragEnabled = on;
+  const wrap = document.body;
+  if(on){
+    wrap.classList.add("drag-on");
+    dragToggle.textContent = "DRAG: ON";
+    dragToggle.classList.remove("secondary");
+    dragToggle.classList.add("warn");
+  } else {
+    wrap.classList.remove("drag-on");
+    dragToggle.textContent = "DRAG: OFF";
+    dragToggle.classList.add("secondary");
+    dragToggle.classList.remove("warn");
+  }
+}
+
+function isOverlay(el){
+  return el && el.classList && el.classList.contains("overlay");
+}
+
+document.addEventListener("mousedown", (e) => {
+  if(!dragEnabled) return;
+  if(!isOverlay(e.target)) return;
+
+  dragTarget = e.target;
+  setSelectedOverlay(dragTarget);
+
+  dragStart.x = e.clientX;
+  dragStart.y = e.clientY;
+
+  const id = dragTarget.id;
+  POS[id] = POS[id] || {left:0, top:0, fontSize:8, width:200};
+
+  dragStart.left = POS[id].left || 0;
+  dragStart.top  = POS[id].top  || 0;
+});
+
+document.addEventListener("mousemove", (e) => {
+  if(!dragEnabled || !dragTarget) return;
+  const dx = e.clientX - dragStart.x;
+  const dy = e.clientY - dragStart.y;
+
+  const id = dragTarget.id;
+  POS[id].left = Math.round(dragStart.left + dx);
+  POS[id].top  = Math.round(dragStart.top  + dy);
+  applyPos();
+});
+
+document.addEventListener("mouseup", () => {
+  dragTarget = null;
+});
+
+/* =========================
+   7) EXPORT / IMPORT POS JSON
+   ========================= */
+document.getElementById("exportPosBtn").addEventListener("click", () => {
+  const blob = new Blob([JSON.stringify(POS,null,2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "jsa_positions.json";
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById("importPosBtn").addEventListener("click", () => {
+  document.getElementById("importPosFile").click();
+});
+
+document.getElementById("importPosFile").addEventListener("change", async (e) => {
+  const f = e.target.files?.[0];
+  if(!f) return;
+  try{
+    const txt = await f.text();
+    const obj = JSON.parse(txt);
+    POS = obj;
+forceAllFontSize(8);
+alert("POSITIONS LOADED.");
+
+  }catch(err){
+    alert("INVALID JSON.");
+  }
+});
+
+/* =========================
+   8) TABS
+   ========================= */
+function showPage(n){
+  if(n === 1){
+    tabP1.classList.add("active"); tabP2.classList.remove("active");
+    canvasP1.style.display = "block";
+    canvasP2.style.display = "none";
+    whichHint.textContent = "Previewing Page 1";
+  } else {
+    tabP2.classList.add("active"); tabP1.classList.remove("active");
+    canvasP1.style.display = "none";
+    canvasP2.style.display = "block";
+    whichHint.textContent = "Previewing Page 2";
+  }
+}
+tabP1.addEventListener("click", () => showPage(1));
+tabP2.addEventListener("click", () => showPage(2));
+
+/* =========================
+   9) BG upload
+   ========================= */
+bg1Input.addEventListener("change", e => {
+  const f = e.target.files?.[0];
+  if(!f) return;
+  bg1.src = URL.createObjectURL(f);
+});
+bg2Input.addEventListener("change", e => {
+  const f = e.target.files?.[0];
+  if(!f) return;
+  bg2.src = URL.createObjectURL(f);
+});
+
+/* =========================
+   10) AUTOFILL FROM SERVICE
+   ========================= */
+serviceSelect.addEventListener("change", () => {
+  const code = serviceSelect.value;
+  const t = SERVICE_TEMPLATES[code];
+  if(!t) return;
+
+  taskInput.value = t.task || taskInput.value;
+  injuryInput.value = t.injury || injuryInput.value;
+  ppeText.value = t.ppe || ppeText.value;
+
+  if(Array.isArray(t.steps)){
+    stepsText.value =
+      "FORMAT: NUMBER | STEP | HAZARD | CONTROL | ASSIGNED TO | COMPLETE (Y/N)\n" +
+      t.steps.map(r => `${r[0]}) ${r[1]} | ${r[2]} | ${r[3]} | ${r[4]} | ${r[5]}`).join("\n");
+    O.stepsBlock.textContent = templateToStepsBlock(t.steps).toUpperCase();
+  }
+
+  syncPreview();
+});
+
+/* PPE presets quick */
+ppePreset.addEventListener("change", () => {
+  const v = ppePreset.value;
+  if(v === "TOWER") ppeText.value = "HARD HAT, SAFETY GLASSES, STEEL TOE, HI-VIS VEST, GLOVES, HEARING PROTECTION, FALL PROTECTION (IF REQUIRED), FACE SHIELD (IF CUTTING/GRINDING)";
+  if(v === "GEN") ppeText.value = "HARD HAT, SAFETY GLASSES, STEEL TOE, GLOVES, HEARING PROTECTION, FIRE EXTINGUISHER AVAILABLE";
+  if(v === "TRAILER") ppeText.value = "HARD HAT, SAFETY GLASSES, STEEL TOE, HI-VIS VEST, GLOVES";
+  if(v === "RIGS") ppeText.value = "HARD HAT, SAFETY GLASSES, STEEL TOE, HI-VIS VEST, GLOVES, HEARING PROTECTION";
+  syncPreview();
+});
+
+/* Apply to preview */
+applyBtn.addEventListener("click", () => {
+  syncPreview();
+});
+
+/* Drag toggle */
+dragToggle.addEventListener("click", () => setDragMode(!dragEnabled));
+
+/* =========================
+   11) GENERATE 2-PAGE PDF
+   ========================= */
+genPdfBtn.addEventListener("click", async () => {
+  syncPreview();
+
+  const wasDrag = dragEnabled;
+  if(wasDrag) setDragMode(false);
+
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ orientation:"portrait", unit:"pt", format:"a4" });
+  const pdfW = 595.28, pdfH = 841.89;
+
+  async function captureToJpeg(el){
+    el.style.overflow = "hidden";
+    el.scrollTop = 0; el.scrollLeft = 0;
+    const rect = el.getBoundingClientRect();
+    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const scale = isIOS ? 1 : 2;
+
+    const canvas = await html2canvas(el, {
+      scale,
+      useCORS: true,
+      backgroundColor: "#ffffff",
+      width: rect.width,
+      height: rect.height
+    });
+    return canvas.toDataURL("image/jpeg", 0.88);
+  }
+
+  const prevP1 = canvasP1.style.display;
+  const prevP2 = canvasP2.style.display;
+
+  canvasP1.style.display = "block";
+  canvasP2.style.display = "none";
+  const img1 = await captureToJpeg(canvasP1);
+  pdf.addImage(img1, "JPEG", 0, 0, pdfW, pdfH);
+
+  pdf.addPage();
+  canvasP1.style.display = "none";
+  canvasP2.style.display = "block";
+  const img2 = await captureToJpeg(canvasP2);
+  pdf.addImage(img2, "JPEG", 0, 0, pdfW, pdfH);
+
+  canvasP1.style.display = prevP1;
+  canvasP2.style.display = prevP2;
+
+  const blob = pdf.output("blob");
+  const url = URL.createObjectURL(blob);
+
+  const fileName = ("JSA_" + (siteInput.value || "SITE") + "_" + (dateInput.value || "")).replace(/\s+/g,"_").toUpperCase();
+
+  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  if(isIOS){
+    window.location.href = url;
+  }else{
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName + ".pdf";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+
+  if(wasDrag) setDragMode(true);
+});
+
+/* Init (ONE ONLY) */
+window.addEventListener("DOMContentLoaded", () => {
+  buildServiceOptions();
+
+  bg1.src = "BG PAGE 1.jpg";
+  bg2.src = "BG PAGE 2.jpg";
+
+    try{
+    const raw = localStorage.getItem("JSA_POSITIONS");
+    if(raw){
+      const obj = JSON.parse(raw);
+      if(obj && typeof obj === "object"){
+        POS = obj;
+      }
+    }
+  }catch(e){}
+
+  forceAllFontSize(9);   // <-- AQUI
+  showPage(1);
+  syncPreview();
+
+});
+
+/* =========================
+   12) SELECT + NUDGE (ARROWS)
+   ========================= */
+let selectedOverlayId = null;
+
+const selectedOverlayName = document.getElementById("selectedOverlayName");
+const nudgeStepSel = document.getElementById("nudgeStep");
+
+const btnUp = document.getElementById("btnUp");
+const btnDown = document.getElementById("btnDown");
+const btnLeft = document.getElementById("btnLeft");
+const btnRight = document.getElementById("btnRight");
+const nudgeSavePos = document.getElementById("nudgeSavePos");
+
+function setSelectedOverlay(el){
+  document.querySelectorAll(".overlay.selected").forEach(x => x.classList.remove("selected"));
+
+  if(!el){
+    selectedOverlayId = null;
+    selectedOverlayName.textContent = "(none)";
+    return;
+  }
+
+  selectedOverlayId = el.id;
+  el.classList.add("selected");
+  selectedOverlayName.textContent = selectedOverlayId;
+}
+
+function nudge(dx, dy){
+  if(!selectedOverlayId) return;
+
+  const step = parseInt(nudgeStepSel.value || "1", 10);
+  if(!POS[selectedOverlayId]) POS[selectedOverlayId] = { left:0, top:0, fontSize:8, width:200 };
+
+  POS[selectedOverlayId].left = Math.round((POS[selectedOverlayId].left || 0) + dx*step);
+  POS[selectedOverlayId].top  = Math.round((POS[selectedOverlayId].top  || 0) + dy*step);
+
+  applyPos();
+}
+
+document.addEventListener("click", (e) => {
+  if(!e.target || !e.target.classList || !e.target.classList.contains("overlay")) return;
+  setSelectedOverlay(e.target);
+});
+
+btnUp.addEventListener("click", () => nudge(0, -1));
+btnDown.addEventListener("click", () => nudge(0, 1));
+btnLeft.addEventListener("click", () => nudge(-1, 0));
+btnRight.addEventListener("click", () => nudge(1, 0));
+
+document.addEventListener("keydown", (e) => {
+  const tag = (document.activeElement && document.activeElement.tagName || "").toLowerCase();
+  if(tag === "input" || tag === "textarea" || tag === "select") return;
+
+  if(!selectedOverlayId) return;
+
+  const fast = e.shiftKey ? 10 : 1;
+  const step = parseInt(nudgeStepSel.value || "1", 10);
+  const eff = fast * step;
+
+  if(!POS[selectedOverlayId]) POS[selectedOverlayId] = { left:0, top:0, fontSize:8, width:200 };
+
+  if(e.key === "ArrowUp"){ POS[selectedOverlayId].top  = Math.round((POS[selectedOverlayId].top||0) - eff); applyPos(); e.preventDefault(); }
+  if(e.key === "ArrowDown"){ POS[selectedOverlayId].top = Math.round((POS[selectedOverlayId].top||0) + eff); applyPos(); e.preventDefault(); }
+  if(e.key === "ArrowLeft"){ POS[selectedOverlayId].left = Math.round((POS[selectedOverlayId].left||0) - eff); applyPos(); e.preventDefault(); }
+  if(e.key === "ArrowRight"){ POS[selectedOverlayId].left = Math.round((POS[selectedOverlayId].left||0) + eff); applyPos(); e.preventDefault(); }
+});
+
+nudgeSavePos.addEventListener("click", () => {
+  try{
+    localStorage.setItem("JSA_POSITIONS", JSON.stringify(POS));
+    alert("POSITIONS SAVED TO localStorage (JSA_POSITIONS).");
+  }catch(err){
+    alert("COULD NOT SAVE POSITIONS.");
+  }
+});
+</script>
+
+</body>
+</html>
