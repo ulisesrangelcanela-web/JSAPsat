@@ -17,7 +17,8 @@
 
   .container{display:flex; gap:18px; align-items:flex-start;}
   .panel{background:var(--card); padding:12px; border-radius:8px; box-shadow:0 6px 18px rgba(0,0,0,0.06);}
-  .form{width:420px; max-height:86vh; overflow:auto;}
+  .form{width:420px; max-height:none; overflow:visible;}
+
   label{display:block; margin-top:8px; font-size:12px; font-weight:600; letter-spacing:0.4px; color:#555;}
   input[type="text"], input[type="date"], select, textarea{
     width:100%; padding:9px 10px; margin-top:4px;
@@ -50,15 +51,25 @@
     position:relative;
     overflow:hidden;
   }
-  .jsa-bg{width:100%; height:auto; display:block; pointer-events:none;}
-  .overlay{
-    position:absolute;
-    pointer-events:auto;
-    color:#000;
-    font-size:8px;
-    white-space:pre-wrap;
-    text-transform:uppercase;
-  }
+  .jsa-bg{
+  width:100%;
+  height:auto;
+  display:block;
+  pointer-events:none;
+  position:relative;
+  z-index:0;
+}
+
+.overlay{
+  position:absolute;
+  z-index:10;              /* <-- CLAVE */
+  pointer-events:auto;
+  color:#000;
+  font-size:8px;
+  white-space:pre-wrap;
+  text-transform:uppercase;
+}
+
 
   .drag-on .overlay{
     cursor:move;
@@ -137,10 +148,10 @@
     <div class="row">
       <div>
         <select id="refReviewed">
-          <option value="YES">YES</option>
-          <option value="NO">NO</option>
-          <option value="NA">N/A</option>
+        <option value="YES">YES</option>
+        <option value="NA">N/A</option>
         </select>
+
       </div>
       <div>
         <input id="refAttach" type="text" placeholder="ATTACH / LIST PROCEDURES" />
@@ -151,17 +162,19 @@
     <div class="row">
       <div>
         <label style="margin-top:0;">MODIFY PROCEDURES?</label>
-        <select id="riskModify">
-          <option value="NO">NO</option>
-          <option value="YES">YES</option>
-        </select>
+             <select id="riskModify">
+            <option value="YES" selected>YES</option>
+            <option value="NO">NO</option>
+         </select>
+
       </div>
       <div>
         <label style="margin-top:0;">SIGNIFICANT RISK REMAINS?</label>
-        <select id="riskRemains">
-          <option value="NO">NO</option>
-          <option value="YES">YES</option>
+                   <select id="riskRemains">
+                   <option value="YES" selected>YES</option>
+                   <option value="NO">NO</option>
         </select>
+
       </div>
     </div>
 
@@ -170,13 +183,14 @@
     <label>PPE (CHECKLIST)</label>
     <div class="row">
       <div>
-        <select id="ppePreset">
-          <option value="">-- PPE PRESET --</option>
-          <option value="TOWER">TOWER / MAST / WORKING AROUND TOWERS</option>
-          <option value="GEN">GENERATOR / POWER</option>
-          <option value="TRAILER">OFFICE TRAILER / GENERAL</option>
-          <option value="RIGS">RIGS / BOOSTERS</option>
-        </select>
+               <select id="ppePreset">
+  <option value="">-- PPE PRESET --</option>
+  <option value="TOWER">TOWER</option>
+  <option value="TRAILER">OFFICE TRAILER</option>
+  <option value="GEN">GENERATOR</option>
+  <option value="RIGS">RIGS</option>
+</select>
+
       </div>
       <div>
         <input id="ppeOther" type="text" placeholder="OTHER PPE (SPECIFY)" />
@@ -286,10 +300,17 @@ JOHN D.
       <div id="ov_date" class="overlay"></div>
       <div id="ov_task" class="overlay"></div>
       <div id="ov_injury" class="overlay"></div>
-      <div id="ov_refReviewed" class="overlay"></div>
+      <div id="ov_refYes" class="overlay"></div>
+      <div id="ov_refNA" class="overlay"></div>
+
       <div id="ov_refAttach" class="overlay"></div>
-      <div id="ov_riskModify" class="overlay"></div>
-      <div id="ov_riskRemains" class="overlay"></div>
+      <!-- RISK ASSESSMENT CHECKBOXES -->
+      <div id="ov_riskModify_yes" class="overlay"></div>
+      <div id="ov_riskModify_no"  class="overlay"></div>
+
+     <div id="ov_riskRemains_yes" class="overlay"></div>
+     <div id="ov_riskRemains_no"  class="overlay"></div>
+
       <div id="ov_ppeText" class="overlay"></div>
       <div id="ov_ppeOther" class="overlay"></div>
       <div id="ov_reviewerName" class="overlay"></div>
@@ -297,6 +318,16 @@ JOHN D.
       <div id="ov_leaderName" class="overlay"></div>
       <div id="ov_leaderCompany" class="overlay"></div>
       <div id="ov_teamNames" class="overlay"></div>
+
+      <!-- PPE CHECKMARKS -->
+<div id="ov_ppeHardHat" class="overlay"></div>
+<div id="ov_ppeGlasses" class="overlay"></div>
+<div id="ov_ppeShoes" class="overlay"></div>
+<div id="ov_ppeGloves" class="overlay"></div>
+<div id="ov_ppeOtherMark" class="overlay"></div>
+<div id="ov_ppeOtherText" class="overlay"></div>
+
+
     </div>
 
     <!-- PAGE 2 -->
@@ -418,10 +449,14 @@ const O = {
   date: document.getElementById("ov_date"),
   task: document.getElementById("ov_task"),
   injury: document.getElementById("ov_injury"),
-  refReviewed: document.getElementById("ov_refReviewed"),
+  refYes: document.getElementById("ov_refYes"),
+  refNA: document.getElementById("ov_refNA"),
   refAttach: document.getElementById("ov_refAttach"),
-  riskModify: document.getElementById("ov_riskModify"),
-  riskRemains: document.getElementById("ov_riskRemains"),
+  riskModifyYes: document.getElementById("ov_riskModify_yes"),
+riskModifyNo:  document.getElementById("ov_riskModify_no"),
+riskRemainsYes: document.getElementById("ov_riskRemains_yes"),
+riskRemainsNo:  document.getElementById("ov_riskRemains_no"),
+
   ppeText: document.getElementById("ov_ppeText"),
   ppeOther: document.getElementById("ov_ppeOther"),
   reviewerName: document.getElementById("ov_reviewerName"),
@@ -430,38 +465,65 @@ const O = {
   leaderCompany: document.getElementById("ov_leaderCompany"),
   teamNames: document.getElementById("ov_teamNames"),
   stepsBlock: document.getElementById("ov_stepsBlock"),
+
+    ppeHardHat: document.getElementById("ov_ppeHardHat"),
+  ppeGlasses: document.getElementById("ov_ppeGlasses"),
+  ppeShoes: document.getElementById("ov_ppeShoes"),
+  ppeGloves: document.getElementById("ov_ppeGloves"),
+  ppeOtherMark: document.getElementById("ov_ppeOtherMark"),
+  ppeOtherText: document.getElementById("ov_ppeOtherText")
+
+
 };
 
 /* =========================
    3) POSITIONS (YOUR ALIGNED JSON)
    ========================= */
 let POS = {
-  ov_company:         { left: 151, top: 193, fontSize: 9, width: 280 },
-  ov_site:            { left: 393, top: 186, fontSize: 9, width: 250 },
-  ov_date:            { left: 672, top: 191, fontSize: 9, width: 160 },
+  ov_company: { left: 151, top: 193, fontSize: 9, width: 180 },
+  ov_site: { left: 391, top: 193, fontSize: 9, width: 240 },
+  ov_date: { left: 672, top: 193, fontSize: 9, width: 130 },
 
-  ov_task:            { left: 185, top: 208, fontSize: 9, width: 780 },
-  ov_injury:          { left: 373, top: 224, fontSize: 9, width: 760 },
+  ov_task: { left: 185, top: 209, fontSize: 9, width: 660 },
+  ov_injury: { left: 373, top: 226, fontSize: 9, width: 480 },
 
-  ov_refReviewed:     { left: 272, top: 273, fontSize: 9, width: 140 },
-  ov_refAttach:       { left: 212, top: 299, fontSize: 9, width: 320 },
+  ov_refYes: { left: 276, top: 274, fontSize: 16, width: 40, lineHeight: 1 },
+  ov_refNA: { left: 338, top: 275, fontSize: 16, width: 40, lineHeight: 1 },
 
-  ov_riskModify:      { left: 269, top: 340, fontSize: 9, width: 140 },
-  ov_riskRemains:     { left: 267, top: 381, fontSize: 9, width: 140 },
+  ov_refAttach: { left: 212, top: 299, fontSize: 9, width: 40 },
 
-  ov_ppeText:         { left: 8,   top: 106, fontSize: 9, width: 430 },
-  ov_ppeOther:        { left: 140, top: 733, fontSize: 9, width: 360 },
+  ov_riskModify_yes: { left: 277, top: 343, fontSize: 16, width: 40, lineHeight: 1 },
+  ov_riskModify_no: { left: 339, top: 343, fontSize: 16, width: 40, lineHeight: 1 },
 
-  ov_reviewerName:    { left: 479, top: 320, fontSize: 9, width: 220 },
-  ov_reviewerCompany: { left: 687, top: 319, fontSize: 9, width: 130 },
+  ov_riskRemains_yes: { left: 278, top: 382, fontSize: 16, width: 40, lineHeight: 1 },
+  ov_riskRemains_no: { left: 339, top: 383, fontSize: 16, width: 40, lineHeight: 1 },
 
-  ov_leaderName:      { left: 477, top: 476, fontSize: 9, width: 230 },
-  ov_leaderCompany:   { left: 706, top: 479, fontSize: 9, width: 130 },
+  ov_ppeText: { left: 300, top: 610, fontSize: 9, width: 130 },
+  ov_ppeOther: { left: 140, top: 733, fontSize: 9, width: 130 },
 
-  ov_teamNames:       { left: 435, top: 535, fontSize: 9, width: 360 },
+  ov_reviewerName: { left: 473, top: 322, fontSize: 9, width: 130 },
+  ov_reviewerCompany: { left: 680, top: 322, fontSize: 9, width: 130 },
 
-  ov_stepsBlock:      { left: 54,  top: 276, fontSize: 9, width: 870 }
+  ov_leaderName: { left: 471, top: 485, fontSize: 9, width: 130 },
+  ov_leaderCompany: { left: 677, top: 485, fontSize: 9, width: 130 },
+
+  ov_teamNames: { left: 402, top: 555, fontSize: 9, width: 130, lineHeight: 1.35 },
+
+  ov_stepsBlock: { left: 54, top: 276, fontSize: 9, width: 130 },
+
+  // PPE checkboxes
+  ov_ppeHardHat: { left: 104, top: 479, fontSize: 16, width: 30, lineHeight: 1 },
+  ov_ppeGlasses: { left: 217, top: 479, fontSize: 16, width: 30, lineHeight: 1 },
+  ov_ppeShoes: { left: 104, top: 505, fontSize: 16, width: 30, lineHeight: 1 },
+  ov_ppeGloves: { left: 217, top: 540, fontSize: 16, width: 30, lineHeight: 1 },
+  ov_ppeOtherMark: { left: 105, top: 621, fontSize: 16, width: 30, lineHeight: 1 },
+  ov_ppeOtherText: { left: 215, top: 627, fontSize:8, width: 80, lineHeight: 1 }  
+
+
 };
+
+
+
 
 
 
@@ -555,11 +617,22 @@ function syncPreview(){
   O.task.textContent = taskInput.value || "";
   O.injury.textContent = injuryInput.value || "";
 
-  O.refReviewed.textContent = (refReviewed.value || "").toUpperCase();
+  const mark = "■"; // cuadro relleno
+O.refYes.textContent = (refReviewed.value === "YES") ? mark : "";
+O.refNA.textContent  = (refReviewed.value === "NA")  ? mark : "";
+
   O.refAttach.textContent = refAttach.value || "";
 
-  O.riskModify.textContent = (riskModify.value || "").toUpperCase();
-  O.riskRemains.textContent = (riskRemains.value || "").toUpperCase();
+
+
+// MODIFY PROCEDURES? (YES/NO)
+O.riskModifyYes.textContent = (riskModify.value === "YES") ? mark : "";
+O.riskModifyNo.textContent  = (riskModify.value === "NO")  ? mark : "";
+
+// SIGNIFICANT RISK REMAINS? (YES/NO)
+O.riskRemainsYes.textContent = (riskRemains.value === "YES") ? mark : "";
+O.riskRemainsNo.textContent  = (riskRemains.value === "NO")  ? mark : "";
+
 
   O.ppeText.textContent = ppeText.value || "";
   O.ppeOther.textContent = ppeOther.value || "";
@@ -574,6 +647,28 @@ function syncPreview(){
 
   O.stepsBlock.textContent = (stepsText.value || "").toUpperCase();
 }
+
+function enableLivePreview(){
+  // Todos los inputs/select/textarea dentro del panel del formulario
+  const formPanel = document.querySelector(".panel.form");
+  if(!formPanel) return;
+
+  const controls = formPanel.querySelectorAll("input, textarea, select");
+
+  // Para no saturar el browser al teclear rápido (debounce)
+  let t = null;
+  const scheduleSync = () => {
+    clearTimeout(t);
+    t = setTimeout(() => syncPreview(), 30);
+  };
+
+  controls.forEach(el => {
+    el.addEventListener("input", scheduleSync);
+    el.addEventListener("change", scheduleSync);
+    el.addEventListener("blur", scheduleSync);
+  });
+}
+
 
 /* =========================
    6) DRAG MODE (MOVE OVERLAYS)
@@ -658,7 +753,8 @@ document.getElementById("importPosFile").addEventListener("change", async (e) =>
     const txt = await f.text();
     const obj = JSON.parse(txt);
     POS = obj;
-forceAllFontSize(8);
+applyPos();
+syncPreview();
 alert("POSITIONS LOADED.");
 
   }catch(err){
@@ -724,12 +820,45 @@ serviceSelect.addEventListener("change", () => {
 /* PPE presets quick */
 ppePreset.addEventListener("change", () => {
   const v = ppePreset.value;
-  if(v === "TOWER") ppeText.value = "HARD HAT, SAFETY GLASSES, STEEL TOE, HI-VIS VEST, GLOVES, HEARING PROTECTION, FALL PROTECTION (IF REQUIRED), FACE SHIELD (IF CUTTING/GRINDING)";
-  if(v === "GEN") ppeText.value = "HARD HAT, SAFETY GLASSES, STEEL TOE, GLOVES, HEARING PROTECTION, FIRE EXTINGUISHER AVAILABLE";
-  if(v === "TRAILER") ppeText.value = "HARD HAT, SAFETY GLASSES, STEEL TOE, HI-VIS VEST, GLOVES";
-  if(v === "RIGS") ppeText.value = "HARD HAT, SAFETY GLASSES, STEEL TOE, HI-VIS VEST, GLOVES, HEARING PROTECTION";
+  const mark = "■";
+
+  // limpia todo primero
+  O.ppeHardHat.textContent = "";
+  O.ppeGlasses.textContent = "";
+  O.ppeShoes.textContent   = "";
+  O.ppeGloves.textContent  = "";
+  O.ppeOtherMark.textContent = "";
+  ppeOther.value = "";          // input del lado izquierdo
+  O.ppeOther.textContent = "";  // overlay del texto
+  O.ppeOtherText.textContent = "";
+
+
+  if(!v){
+    syncPreview();
+    return;
+  }
+
+  // En tu caso dijiste: "cualquiera que seleccione arroje varios simbolos"
+  // => todos los presets marcan estos básicos + FR CLOTHES
+  O.ppeHardHat.textContent = mark ;
+  O.ppeGlasses.textContent = mark ;
+  O.ppeShoes.textContent   = mark ;
+  O.ppeGloves.textContent  = mark ;
+
+  // OTHER PPE: check + texto
+  O.ppeOtherMark.textContent = mark ;
+    ppeOther.value = "FR CLOTHES";
+O.ppeOtherText.textContent = "FR CLOTHES";
+
+
+  // Si todavía quieres mantener el texto largo en ppeText, puedes dejarlo,
+  // o vaciarlo para que ya no estorbe:
+  // ppeText.value = "";
+  // O.ppeText.textContent = "";
+
   syncPreview();
 });
+
 
 /* Apply to preview */
 applyBtn.addEventListener("click", () => {
@@ -808,27 +937,18 @@ genPdfBtn.addEventListener("click", async () => {
 });
 
 /* Init (ONE ONLY) */
-window.addEventListener("DOMContentLoaded", () => {
+   window.addEventListener("DOMContentLoaded", () => {
   buildServiceOptions();
 
   bg1.src = "BG PAGE 1.jpg";
   bg2.src = "BG PAGE 2.jpg";
 
-    try{
-    const raw = localStorage.getItem("JSA_POSITIONS");
-    if(raw){
-      const obj = JSON.parse(raw);
-      if(obj && typeof obj === "object"){
-        POS = obj;
-      }
-    }
-  }catch(e){}
-
-  forceAllFontSize(9);   // <-- AQUI
+  applyPos();
   showPage(1);
   syncPreview();
-
+  enableLivePreview();
 });
+
 
 /* =========================
    12) SELECT + NUDGE (ARROWS)
