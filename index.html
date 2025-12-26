@@ -12,6 +12,18 @@
 <style>
 
   #nudgePanel{ display:none !important; }
+  
+
+  html, body{
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+.overlay{
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+
 
   :root{ --accent:#0b63d8; --muted:#444; --card:#fff; }
   body{font-family:Arial, Helvetica, sans-serif; background:#f3f5f8; margin:16px; color:#111;}
@@ -1165,7 +1177,6 @@ dragToggle.addEventListener("click", () => setDragMode(!dragEnabled));
    ========================= */
 genPdfBtn.addEventListener("click", async () => {
   try{
-    // 1) Verifica libs (si no están, te dice el motivo)
     if(typeof html2canvas !== "function"){
       alert("html2canvas NO cargó. Si abriste como file://, prueba servirlo con un server (Live Server).");
       return;
@@ -1175,26 +1186,20 @@ genPdfBtn.addEventListener("click", async () => {
       return;
     }
 
-    // 2) Sync + seguridad de UI
     syncPreview();
 
     const wasDrag = dragEnabled;
     if(wasDrag) setDragMode(false);
 
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({ orientation:"landscape", unit:"pt", format:"a4" });
-    const pdfW = 841.89, pdfH = 595.28; // A4 landscape
-
-
     const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-    async function captureToPng(el){
-      // OJO: si un canvas está en display:none, rect = 0.
-      // Aquí nos aseguramos que esté visible antes de llamar.
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation:"landscape", unit:"pt", format:"a4" });
+    const pdfW = 841.89, pdfH = 595.28;
+
+    async function captureToImg(el){
       el.style.overflow = "hidden";
       el.scrollTop = 0; el.scrollLeft = 0;
-
-      // Forzar reflow para evitar 0x0 en algunos browsers
       void el.offsetHeight;
 
       const rect = el.getBoundingClientRect();
@@ -1211,7 +1216,8 @@ genPdfBtn.addEventListener("click", async () => {
         logging: false
       });
 
-      return canvas.toDataURL("image/png");
+      // Recomendado para iPhone: JPEG (menos pesado)
+      return canvas.toDataURL("image/jpeg", 0.85);
     }
 
     const prevP1 = canvasP1.style.display;
@@ -1220,31 +1226,41 @@ genPdfBtn.addEventListener("click", async () => {
     // PAGE 1
     canvasP1.style.display = "block";
     canvasP2.style.display = "none";
-    const img1 = await captureToPng(canvasP1);
-    pdf.addImage(img1, "PNG", 0, 0, pdfW, pdfH, undefined, "FAST");
+    const img1 = await captureToImg(canvasP1);
+    pdf.addImage(img1, "JPEG", 0, 0, pdfW, pdfH, undefined, "FAST");
 
     // PAGE 2
     pdf.addPage();
     canvasP1.style.display = "none";
     canvasP2.style.display = "block";
-    const img2 = await captureToPng(canvasP2);
-    pdf.addImage(img2, "PNG", 0, 0, pdfW, pdfH, undefined, "FAST");
+    const img2 = await captureToImg(canvasP2);
+    pdf.addImage(img2, "JPEG", 0, 0, pdfW, pdfH, undefined, "FAST");
 
     // restore view
     canvasP1.style.display = prevP1;
     canvasP2.style.display = prevP2;
 
-    const fileName = ("JSA_" + (siteInput.value || "SITE") + "_" + (dateInput.value || "")).replace(/\s+/g,"_").toUpperCase();
+    const fileName = ("JSA_" + (siteInput.value || "SITE") + "_" + (dateInput.value || ""))
+      .replace(/\s+/g,"_")
+      .toUpperCase();
 
-    // 3) Guardado robusto
-    // Desktop/Android: pdf.save() normalmente sí descarga.
-    // iOS: suele fallar descargar; abrimos datauri.
+    const blob = pdf.output("blob");
+    const url = URL.createObjectURL(blob);
+
     if(isIOS){
-      const dataUri = pdf.output("datauristring");
-      window.open(dataUri, "_blank");
-    }else{
-      pdf.save(fileName + ".pdf");
+      // iPhone: visualizar (NO descargar)
+      window.location.href = url;
+    } else {
+      // Android/Desktop: descargar
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName + ".pdf";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
     }
+
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
 
     if(wasDrag) setDragMode(true);
 
@@ -1255,7 +1271,7 @@ genPdfBtn.addEventListener("click", async () => {
 });
 
 
- 
+
 
 
 /* Init (ONE ONLY) */
