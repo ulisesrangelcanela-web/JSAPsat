@@ -11,7 +11,9 @@
 
 <style>
 
-  #nudgePanel{ display:none !important; }
+  #nudgePanel{ display:none; }
+  #nudgePanel.locked{ display:none; }
+
   
 
   html, body{
@@ -916,12 +918,17 @@ function enableLivePreview(){
 
 function showNudgePanel(){
   const p = document.getElementById("nudgePanel");
-  if(p) p.style.display = "block";   // override del CSS
+  if(!p) return;
+  p.classList.remove("locked");
+  p.style.display = "block";
 }
 function hideNudgePanel(){
   const p = document.getElementById("nudgePanel");
-  if(p) p.style.display = "none";
+  if(!p) return;
+  p.style.display = "none";
+  p.classList.add("locked");
 }
+
 
 
 
