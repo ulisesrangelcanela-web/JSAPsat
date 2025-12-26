@@ -337,7 +337,7 @@
 
     <!-- PAGE 1 -->
     <div id="canvasP1" class="jsa-canvas">
-      <img id="bg1" class="jsa-bg" src="" alt="JSA Page 1 background" />
+      <img id="bg1" class="jsa-bg" src="" alt="JSA Page 1 background" crossorigin="anonymous" />
       <div id="ov_company" class="overlay"></div>
       <div id="ov_site" class="overlay"></div>
       <div id="ov_date" class="overlay"></div>
@@ -375,7 +375,7 @@
 
     <!-- PAGE 2 -->
     <div id="canvasP2" class="jsa-canvas" style="display:none; margin-top:12px;">
-      <img id="bg2" class="jsa-bg" src="" alt="JSA Page 2 background" />
+      <img id="bg2" class="jsa-bg" src="" alt="JSA Page 2 background" crossorigin="anonymous" />
       <div id="ov_taskP2" class="overlay"></div>  <!-- NUEVO -->
       <div id="ov_stepsBlock" class="overlay"></div>
     </div>
@@ -1285,8 +1285,8 @@ genPdfBtn.addEventListener("click", async () => {
    window.addEventListener("DOMContentLoaded", () => {
   buildServiceOptions();
 
-  bg1.src = "BG PAGE 1.jpg";
-  bg2.src = "BG PAGE 2.jpg";
+     bg1.src = "bg-page-1.jpg";
+     bg2.src = "bg-page-2.jpg";
 
   applyPos();
   showPage(1);
